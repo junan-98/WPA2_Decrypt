@@ -57,7 +57,7 @@ class KEY_GENERATOR:
     
     def gen_mics(self, PTK, data):
         # data는 MIC필드를 0으로 set해놓은 핸드쉐이크 메시지
-        # KEK를 이용해서 mic계산
+        # KCK를 이용해서 mic계산
         
         mics = [hmac.new(PTK[0:16], i, sha1).digest() for i in data]
         return mics

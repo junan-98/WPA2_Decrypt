@@ -10,7 +10,7 @@ class PARSER:
         self.STA_MAC = None
         self.mics = list()
         self.data = list()
-
+        self.encrypted_pkts = list()
 
     def get_info(self):
         flag = 0
@@ -45,3 +45,8 @@ class PARSER:
                     data = binascii.a2b_hex(data)
                     self.data.append(data)
                 flag += 1
+            
+            elif pkt.haslayer(Dot11CCMP):
+                self.encrypted_pkts.append(pkt)
+    
+

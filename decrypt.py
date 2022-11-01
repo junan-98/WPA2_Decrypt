@@ -1,6 +1,8 @@
 import parser
 import keygen
+import dot11decrypt
 import sys
+
 
 if __name__ == '__main__':
     ssid = sys.argv[1]
@@ -13,3 +15,4 @@ if __name__ == '__main__':
     ptk = keygen.gen_PTK(pmk)
     mics = keygen.gen_mics(ptk, parser.data) 
     keygen.verify_mics(mics, parser)
+    dot11decrypt.dot11i_decrypt(parser, ptk[32:48])
