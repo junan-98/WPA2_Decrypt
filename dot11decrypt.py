@@ -3,10 +3,7 @@ from Crypto.Cipher import ARC4, AES
 from scapy.all import *
 
 def dot11i_decrypt(parser, TK):
-    print(binascii.b2a_hex(TK))
     for pkt in parser.encrypted_pkts:
-        print("ENCRYPTED PACKET")
-        hexdump(pkt)
         dot11 = pkt[Dot11]
         ccmp = pkt[Dot11CCMP]
         
@@ -20,9 +17,9 @@ def dot11i_decrypt(parser, TK):
         priority = '0'+tid
         
         nonce = bytes.fromhex(priority) + bytes.fromhex(TA) + bytes.fromhex(PN)
-        print(nonce)
+        
         enc_cipher = AES.new(TK, AES.MODE_CCM, nonce, mac_len=8)
         # MIC는 제거
         decrypted_data = enc_cipher.decrypt(ccmp.data[:-8])
-        print("DECRYPTED PACKET")
-        hexdump(decrypted_data)
+        # 패킷을 저장할때 source, destination의 정보를 함게 넣어줘야 함 + Logical-Link Control 부분은 빼준다.
+        wrpcap('./dec_pcap/decrypted.pcap', binascii.a2b_hex(dot11.addr1.replace(':','',5)+dot11.addr2.replace(':','',5))+decrypted_data[6:], append=True)

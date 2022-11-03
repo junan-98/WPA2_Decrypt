@@ -3,7 +3,8 @@ import binascii
 
 class PARSER:
     def __init__(self):
-        self.packets = rdpcap('./pcap/WPA2_NO_PMF.pcapng')
+        self.packets = rdpcap('./pcap/WPA2_PMF.pcapng')
+        #self.packets = rdpcap('./pcap/WPA2_NO_PMF.pcapng')
         self.Anonce = None
         self.Snonce = None
         self.AP_MAC = None
@@ -11,6 +12,7 @@ class PARSER:
         self.mics = list()
         self.data = list()
         self.encrypted_pkts = list()
+        self.enc_type = None
 
     def get_info(self):
         flag = 0
@@ -18,6 +20,14 @@ class PARSER:
             pkt = self.packets[i]
             # EAPOL패킷일 경우 필요한 정보들을 추출한다.
             if pkt.haslayer(EAPOL):
+                
+                # 802.11w, 802.11i를 구분하기 위함
+                if self.enc_type == None and int(binascii.b2a_hex(pkt.load[2:3]),16) & 3 == 2:
+                    self.enc_type = 2
+                    
+                elif self.enc_type == None and int(binascii.b2a_hex(pkt.load[2:3]),16) & 3 == 3:
+                    self.enc_type = 3
+
                 if flag == 0:
                     self.AP_MAC = pkt.addr2.replace(':', '')
                     self.STA_MAC = pkt.addr1.replace(':', '')
