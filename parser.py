@@ -3,8 +3,8 @@ import binascii
 
 class PARSER:
     def __init__(self):
-        #self.packets = rdpcap('./pcap/WPA2_PMF.pcapng')
-        self.packets = rdpcap('./pcap/WPA2_NO_PMF.pcapng')
+        self.packets = rdpcap('./pcap/WPA2_PMF.pcapng')
+        #self.packets = rdpcap('./pcap/WPA2_NO_PMF.pcapng')
         self.Anonce = None
         self.Snonce = None
         self.AP_MAC = None

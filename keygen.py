@@ -1,11 +1,8 @@
 # WPA2 Decrypt TEST
 from pbkdf2 import PBKDF2
-from hashlib import pbkdf2_hmac, sha1, sha256, sha3_256
-from scapy.layers.tls.crypto.prf import _tls_P_hash
-from scapy.layers.tls.crypto.h_mac import Hmac_SHA256
-from Crypto.Hash import HMAC, SHA256
-#from cryptography.hazmat.primitives import hashes, hmac
-
+from hashlib import pbkdf2_hmac, sha1, sha256
+import subprocess
+import os
 import binascii
 import hmac
 import parser
@@ -39,9 +36,10 @@ class KEY_GENERATOR:
 	def gen_PMK(self):
 		# 생성식: PMK = PBKDF2(HMAC−SHA1, PSK, SSID, 4096, 256)
 		#PMK = PBKDF2(str.encode(self.passphrase), str.encode(self.SSID), 4096).read(32)# 밑에와 동일한 결과값
-		PMK = pbkdf2_hmac('sha1', str.encode(self.passphrase), str.encode(self.SSID), 4096, 32) #256 bit
-		print(f"[+] PMK: {PMK.hex()}")
-		return PMK
+		if self.enc_type == 2 or self.enc_type == 3:
+			PMK = pbkdf2_hmac('sha1', str.encode(self.passphrase), str.encode(self.SSID), 4096, 32) #256 bit
+			print(f"[+] PMK: {PMK.hex()}")
+			return PMK
 
 	def gen_PTK(self, PMK):
 		# PTK = PRF (PMK + Anonce + SNonce + Mac (AP)+ Mac (SA))
@@ -55,31 +53,15 @@ class KEY_GENERATOR:
 				hmacsha1 = hmac.new(PMK, A + chr(0x00).encode() + B + chr(i).encode(), sha1)
 				ret = ret + hmacsha1.digest()
 				i += 1
-			
+
 		elif self.enc_type == 3:
-			"""
-			text = A + chr(0x00).encode() + B + chr(0).encode()
-			tmp_1 = self.xordata(key,0x64)
-			tmp_2 = hmac.new(self.xordata(key,0x36), text, sha256).digest()
-			ret = hmac.new(tmp_1, tmp_2, sha256).digest()
-			
-			while i <= ((to_byte*8 + 159)/160):
-				ret = ret + Hmac_SHA256(PMK).digest(A + chr(0x00).encode() + B + chr(i).encode())
-				i += 1
-			
-			"""
-			"""
-			while i <= ((to_byte*8 + 159)/160):
-				hmacsha256 = hmac.new(PMK, A + chr(0x00).encode() + B + chr(i).encode(), SHA256)
-				ret = ret + hmacsha256.digest()
-				i += 1
-			"""
-			while i <= ((to_byte*8 + 159)/160):
-				h = HMAC.new(PMK, digestmod=SHA256)
-				h.update(A + chr(0x00).encode() + B + chr(i).encode())
-				ret += h.digest()
-				i+=1
-		
+			ret = ''
+			tmp = subprocess.run(['./dot11w/main2', binascii.hexlify(PMK), binascii.hexlify(B)], stdout = subprocess.PIPE)
+			tmp = tmp.stdout
+			for i in range(0, len(tmp)):
+				ret += chr(tmp[i])
+			ret = binascii.unhexlify(ret)
+
 		print(f"[+] PTK: {binascii.b2a_hex(ret[:to_byte]).decode()}")
 		print(f"    [+] KCK: {binascii.b2a_hex(ret[:16]).decode()}")
 		print(f"    [+] KEK: {binascii.b2a_hex(ret[16:32]).decode()}")
@@ -88,7 +70,7 @@ class KEY_GENERATOR:
 		print(f"    [+] MIC Rx: {binascii.b2a_hex(ret[56:64]).decode()}\n")
 		return ret[:to_byte]
 
-	
+
 	def gen_mics(self, PTK, data):
 		# data는 MIC필드를 0으로 set해놓은 핸드쉐이크 메시지
 		# KCK를 이용해서 mic계산
