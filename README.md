@@ -1,4 +1,4 @@
-# 802.11i, 802.11i Decrypt tool
+# 802.11i, 802.11w Decrypt tool
 ## Reference
 [ScapyWifi/ScapyFi.py at 5a110aa8d997d7905080e82ddcd3d8399b2d1a96 · k1nd0ne/ScapyWifi](https://github.com/k1nd0ne/ScapyWifi/blob/5a110aa8d997d7905080e82ddcd3d8399b2d1a96/ScapyFi.py#L356)
 [DeSniffer/Sniffer.py at 69c2292c7d93a39dbdd6370bd79455df66afe010 · wifihack/DeSniffer](https://github.com/wifihack/DeSniffer/blob/69c2292c7d93a39dbdd6370bd79455df66afe010/Sniffer.py#L348)
