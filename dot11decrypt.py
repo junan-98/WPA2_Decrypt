@@ -1,5 +1,5 @@
 import binascii
-from Crypto.Cipher import ARC4, AES
+from Crypto.Cipher import AES
 from scapy.all import *
 
 def dot11i_decrypt(parser, TK):

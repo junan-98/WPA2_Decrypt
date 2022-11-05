@@ -1,6 +1,8 @@
 # WPA2 Decrypt TEST
 from pbkdf2 import PBKDF2
 from hashlib import pbkdf2_hmac, sha1, sha256
+from Crypto.Cipher import AES
+from Crypto.Hash import CMAC
 import subprocess
 import os
 import binascii
@@ -39,6 +41,7 @@ class KEY_GENERATOR:
 		if self.enc_type == 2 or self.enc_type == 3:
 			PMK = pbkdf2_hmac('sha1', str.encode(self.passphrase), str.encode(self.SSID), 4096, 32) #256 bit
 			print(f"[+] PMK: {PMK.hex()}")
+			from Crypto.Cipher import ARC4, AES
 			return PMK
 
 	def gen_PTK(self, PMK):
@@ -74,13 +77,21 @@ class KEY_GENERATOR:
 	def gen_mics(self, PTK, data):
 		# data는 MIC필드를 0으로 set해놓은 핸드쉐이크 메시지
 		# KCK를 이용해서 mic계산
-		mics = [hmac.new(PTK[0:16], i, sha1).digest() for i in data]
-		return mics
+		if self.enc_type == 2:
+			mics = [hmac.new(PTK[0:16], i, sha1).digest() for i in data]
+			return mics
+		elif self.enc_type == 3:
+			mics = []
+			for i in data:
+				cobj = CMAC.new(PTK[0:16], ciphermod=AES)
+				cobj.update(i)
+				mics.append(cobj.digest())
+			return mics
 	
 	def verify_mics(self, mics, parser):
 		for i in range(0, len(mics)):
 			mic1Str = parser.mics[i].upper().decode()
-			micStr = binascii.b2a_hex(mics[i]).decode().upper()[:-8]
+			micStr = binascii.b2a_hex(mics[i]).decode().upper()[:len(mic1Str)]
 			print(f"[*] original   mic: {mic1Str}")
 			print(f"[*] calculated mic: {micStr}")
 			if mic1Str != micStr:
@@ -89,32 +100,3 @@ class KEY_GENERATOR:
 			else: print("[+] MATCHED")
 		print("[+] ALL MIC MATCHED\n")
 		return True
-
-	def shift_and_add(self, original_data, add_data):
-		original_data << 8
-		return original_data + add_data
-
-	def xordata(self,data, pad):
-		l = len(data)
-		tmp_data = int.from_bytes(data, byteorder='big')
-		mask = 0xff
-		new_data = 0
-		for i in range(1, 65):
-			# 기존 데이터에서 한비이트씩 꺼내서 XOR
-			one_byte = tmp_data&mask
-			one_byte ^= pad
-			# 새로운 데이터의 값을 한바이트 쉬프트 해주고, XOR된 값을 넣는다.
-			new_data = self.shift_and_add(new_data, one_byte)
-			mask = mask * 256
-		# 어차피 PMK 64byte이니까 그냥 ㄱ
-		mask = 0xff
-		tmp_data = 0
-		#바이트가 역순이기 때문에 아래서부터 한바이트씩 꺼내서 다시 넣어줘야함
-		for i in range(1, 65):
-			one_byte = new_data&mask
-			tmp_data = self.shift_and_add(tmp_data, one_byte)
-		ret = tmp_data.to_bytes(length=l, byteorder='big')
-		
-		return 
-
-
