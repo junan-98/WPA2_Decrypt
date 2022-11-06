@@ -13,6 +13,7 @@ class KEY_GENERATOR:
 	def __init__(self, parser, ssid, passphrase):
 		print(f"[+] SSID: {ssid}")
 		print(f"[+] passphrase: {passphrase}\n")
+		self.verify_information(parser)
 		print(f"[+] AP_MAC: {parser.AP_MAC}")
 		print(f"[+] STA_MAC: {parser.STA_MAC}")
 		print(f"[+] Anonce: {parser.Anonce.decode()}")
@@ -28,7 +29,13 @@ class KEY_GENERATOR:
 		self.STA_MAC = binascii.a2b_hex(parser.STA_MAC)
 		self.Anonce = binascii.a2b_hex(parser.Anonce.decode())
 		self.Snonce = binascii.a2b_hex(parser.Snonce.decode())
-		
+	
+	# verify information
+	def verify_information(self, parser):
+		if parser.Anonce == None or parser.Snonce == None or parser.AP_MAC == None or parser.STA_MAC == None:
+			print("[!] NOT ENOUGH INFORMATION FOR GENERATING KEYS")
+			exit(-1)
+	
 	# PSK == PMK in WPA2
 	def gen_PSK(self):
 		PSK = PBKDF2(str.encode(self.passphrase), str.encode(self.SSID), 4096).read(32)
@@ -36,8 +43,6 @@ class KEY_GENERATOR:
 		return PSK.hex()
 	
 	def gen_PMK(self):
-		# 생성식: PMK = PBKDF2(HMAC−SHA1, PSK, SSID, 4096, 256)
-		#PMK = PBKDF2(str.encode(self.passphrase), str.encode(self.SSID), 4096).read(32)# 밑에와 동일한 결과값
 		if self.enc_type == 2 or self.enc_type == 3:
 			PMK = pbkdf2_hmac('sha1', str.encode(self.passphrase), str.encode(self.SSID), 4096, 32) #256 bit
 			print(f"[+] PMK: {PMK.hex()}")
@@ -45,7 +50,6 @@ class KEY_GENERATOR:
 			return PMK
 
 	def gen_PTK(self, PMK):
-		# PTK = PRF (PMK + Anonce + SNonce + Mac (AP)+ Mac (SA))
 		ret = b''
 		to_byte = 64 # 512 bit
 		B = min(self.AP_MAC, self.STA_MAC) + max(self.AP_MAC, self.STA_MAC) + min(self.Anonce, self.Snonce) + max(self.Anonce, self.Snonce)

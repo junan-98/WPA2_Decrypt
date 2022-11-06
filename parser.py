@@ -3,7 +3,7 @@ import binascii
 
 class PARSER:
     def __init__(self):
-        self.packets = rdpcap('./pcap/WPA2_PMF.pcapng')
+        self.packets = rdpcap('./pcap/WPA2_NO_PMF.pcapng')
         #self.packets = rdpcap('./pcap/WPA2_NO_PMF.pcapng')
         self.Anonce = None
         self.Snonce = None
@@ -15,48 +15,51 @@ class PARSER:
         self.enc_type = None
 
     def get_info(self):
-        flag = 0
         for i in range(0, len(self.packets)):
             pkt = self.packets[i]
             # EAPOL패킷일 경우 필요한 정보들을 추출한다.
             if pkt.haslayer(EAPOL):
-                
                 # 802.11w, 802.11i를 구분하기 위함
                 if self.enc_type == None and int(binascii.b2a_hex(pkt.load[2:3]),16) & 3 == 2:
                     self.enc_type = 2
-                    
                 elif self.enc_type == None and int(binascii.b2a_hex(pkt.load[2:3]),16) & 3 == 3:
                     self.enc_type = 3
-
-                if flag == 0:
-                    self.AP_MAC = pkt.addr2.replace(':', '')
-                    self.STA_MAC = pkt.addr1.replace(':', '')
-                    self.Anonce = binascii.b2a_hex(pkt.load[13:45])
-                elif flag == 1:
-                    self.Snonce = binascii.b2a_hex(pkt.load[13:45])
-                    mic1 = binascii.b2a_hex(pkt.load[77:93])
-                    self.mics.append(mic1)
-                    data = binascii.hexlify(bytes(pkt[EAPOL]))
-                    data = data.replace(mic1, b"0"*32)
-                    data = binascii.a2b_hex(data)
-                    self.data.append(data)
-                elif flag == 2:
-                    mic2 = binascii.b2a_hex(pkt.load[77:93])
-                    self.mics.append(mic2)
-                    data = binascii.hexlify(bytes(pkt[EAPOL]))
-                    data = data.replace(mic2, b"0"*32)
-                    data = binascii.a2b_hex(data)
-                    self.data.append(data)
-                elif flag == 3:
-                    mic3 = binascii.b2a_hex(pkt.load[77:93])
-                    self.mics.append(mic3)
-                    data = binascii.hexlify(bytes(pkt[EAPOL]))
-                    data = data.replace(mic3, b"0"*32)
-                    data = binascii.a2b_hex(data)
-                    self.data.append(data)
-                flag += 1
-            
+                    
+                # Check DS Status
+                #print(int(binascii.b2a_hex(pkt[EAPOL].load[1:2]),16))
+                if pkt[Dot11FCS].FCfield.value & 0x2 == 0x2:
+                    # Check Secure bit
+                    if int(binascii.b2a_hex(pkt[EAPOL].load[1:2]),16) & 0x02 == 0:
+                        # EAPOL1
+                        self.AP_MAC = pkt.addr2.replace(':', '')
+                        self.STA_MAC = pkt.addr1.replace(':', '')
+                        self.Anonce = binascii.b2a_hex(pkt.load[13:45])
+                    else:
+                        # EAPOL3
+                        mic = binascii.b2a_hex(pkt.load[77:93])
+                        self.mics.append(mic)
+                        data = binascii.hexlify(bytes(pkt[EAPOL]))
+                        data = data.replace(mic, b"0"*32)
+                        data = binascii.a2b_hex(data)
+                        self.data.append(data)
+                else:
+                    if int(binascii.b2a_hex(pkt[EAPOL].load[1:2]),16) & 0x02 == 0:
+                        # EAPOL2
+                        self.Snonce = binascii.b2a_hex(pkt.load[13:45])
+                        mic = binascii.b2a_hex(pkt.load[77:93])
+                        self.mics.append(mic)
+                        data = binascii.hexlify(bytes(pkt[EAPOL]))
+                        data = data.replace(mic, b"0"*32)
+                        data = binascii.a2b_hex(data)
+                        self.data.append(data)
+                    else:
+                        #EAPOL4
+                        mic = binascii.b2a_hex(pkt.load[77:93])
+                        self.mics.append(mic)
+                        data = binascii.hexlify(bytes(pkt[EAPOL]))
+                        data = data.replace(mic, b"0"*32)
+                        data = binascii.a2b_hex(data)
+                        self.data.append(data)
+            # 암호화된 패킷들은 한곳에 저장
             elif pkt.haslayer(Dot11CCMP):
                 self.encrypted_pkts.append(pkt)
-    
-
